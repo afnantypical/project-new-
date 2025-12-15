@@ -1,0 +1,29 @@
+backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: deepikaashok/mean-backend:latest
+    container_name: mean-backend
+    restart: unless-stopped
+    environment:
+      MONGO_URI: mongodb://mongo:27017/mean-db
+      PORT: 3000
+    depends_on:
+      - mongo
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: deepikaashok/mean-frontend:latest
+    container_name: mean-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "4200:4200"
+
+volumes:
+  mongo_data:
