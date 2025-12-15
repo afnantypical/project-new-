@@ -1,4 +1,16 @@
-backend:
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:latest
+    container_name: mean-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -10,8 +22,8 @@ backend:
       PORT: 3000
     depends_on:
       - mongo
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"   # only exposed to other containers, not host
 
   frontend:
     build:
@@ -22,8 +34,5 @@ backend:
     restart: unless-stopped
     depends_on:
       - backend
-    ports:
-      - "4200:4200"
-
-volumes:
-  mongo_data:
+    expose:
+      - "4200"   # only exposed to other containers, Nginx will handle
