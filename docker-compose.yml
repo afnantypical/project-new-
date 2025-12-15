@@ -23,7 +23,7 @@ services:
     depends_on:
       - mongo
     expose:
-      - "3000"   # only exposed to other containers, not host
+      - "3000"   # exposed to other containers only
 
   frontend:
     build:
@@ -35,4 +35,15 @@ services:
     depends_on:
       - backend
     expose:
-      - "4200"   # only exposed to other containers, Nginx will handle
+      - "4200"   # exposed to other containers only
+
+  nginx:
+    image: nginx:alpine
+    container_name: mean-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"   # exposed externally
+    depends_on:
+      - frontend
+      - backend
+    volumes:
