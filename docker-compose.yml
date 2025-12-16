@@ -1,49 +1,80 @@
-version: '3.8'
+pipeline {
+    agent any
 
-services:
-  mongo:
-    image: mongo:latest
-    container_name: mean-mongo
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
+    environment {
+        // Docker Hub repositories
+        DOCKERHUB_BACKEND  = "syedafnan9148/project-new-backend"
+        DOCKERHUB_FRONTEND = "syedafnan9148/project-new-frontend"
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: deepikaashok/mean-backend:latest
-    container_name: mean-backend
-    restart: unless-stopped
-    environment:
-      MONGO_URI: mongodb://mongo:27017/mean-db
-      PORT: 3000
-    depends_on:
-      - mongo
-    expose:
-      - "3000"   # exposed to other containers only
+        // EC2 App Server details (UPDATED)
+        SSH_HOST = "3.235.141.216"
+        SSH_USER = "ubuntu"
+    }
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    image: deepikaashok/mean-frontend:latest
-    container_name: mean-frontend
-    restart: unless-stopped
-    depends_on:
-      - backend
-    expose:
-      - "4200"   # exposed to other containers only
+    stages {
 
-  nginx:
-    image: nginx:alpine
-    container_name: mean-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"   # exposed externally
-    depends_on:
-      - frontend
-      - backend
-    volumes:
+        stage('Checkout Source Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Backend Docker Image') {
+            steps {
+                sh """
+                    docker build -t ${DOCKERHUB_BACKEND}:latest \
+                    ./project-new/backend
+                """
+            }
+        }
+
+        stage('Build Frontend Docker Image') {
+            steps {
+                sh """
+                    docker build -t ${DOCKERHUB_FRONTEND}:latest \
+                    ./project-new/frontend
+                """
+            }
+        }
+
+        stage('Push Images to Docker Hub') {
+            environment {
+                DOCKERHUB = credentials('dockerhub-cred')
+            }
+            steps {
+                sh """
+                    echo "\$DOCKERHUB_PSW" | docker login \
+                    -u "\$DOCKERHUB_USR" --password-stdin
+
+                    docker push ${DOCKERHUB_BACKEND}:latest
+                    docker push ${DOCKERHUB_FRONTEND}:latest
+                """
+            }
+        }
+
+        stage('Deploy to EC2 Server') {
+            steps {
+                sshagent(credentials: ['app-ec2-ssh']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no \
+                        ${SSH_USER}@${SSH_HOST} '
+                            cd /opt/project-new &&
+                            git pull &&
+                            docker-compose pull &&
+                            docker-compose up -d
+                        '
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Deployment completed successfully"
+        }
+        failure {
+            echo "❌ Pipeline failed. Check Jenkins logs"
+        }
+    }
+}
