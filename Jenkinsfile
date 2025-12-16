@@ -2,11 +2,8 @@ pipeline {
     agent any
 
     environment {
-        // Docker Hub repositories
         DOCKERHUB_BACKEND  = "syedafnan9148/project-new-backend"
         DOCKERHUB_FRONTEND = "syedafnan9148/project-new-frontend"
-
-        // EC2 App Server details (UPDATED)
         SSH_HOST = "3.235.141.216"
         SSH_USER = "ubuntu"
     }
@@ -22,8 +19,7 @@ pipeline {
         stage('Build Backend Docker Image') {
             steps {
                 sh """
-                    docker build -t ${DOCKERHUB_BACKEND}:latest \
-                    ./project-new/backend
+                    docker build -t ${DOCKERHUB_BACKEND}:latest ./backend
                 """
             }
         }
@@ -31,8 +27,7 @@ pipeline {
         stage('Build Frontend Docker Image') {
             steps {
                 sh """
-                    docker build -t ${DOCKERHUB_FRONTEND}:latest \
-                    ./project-new/frontend
+                    docker build -t ${DOCKERHUB_FRONTEND}:latest ./frontend
                 """
             }
         }
@@ -43,8 +38,7 @@ pipeline {
             }
             steps {
                 sh """
-                    echo "\$DOCKERHUB_PSW" | docker login \
-                    -u "\$DOCKERHUB_USR" --password-stdin
+                    echo "\$DOCKERHUB_PSW" | docker login -u "\$DOCKERHUB_USR" --password-stdin
 
                     docker push ${DOCKERHUB_BACKEND}:latest
                     docker push ${DOCKERHUB_FRONTEND}:latest
@@ -56,8 +50,7 @@ pipeline {
             steps {
                 sshagent(credentials: ['app-ec2-ssh']) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no \
-                        ${SSH_USER}@${SSH_HOST} '
+                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} '
                             cd /opt/project-new &&
                             git pull &&
                             docker-compose pull &&
