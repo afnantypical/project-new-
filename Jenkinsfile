@@ -50,26 +50,4 @@ pipeline {
         stage('Deploy to EC2 Server') {
             steps {
                 sshagent(['app-ec2-ssh']) {
-                    sh '''
-                        set -e
-                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} << 'EOF'
-                        cd /opt/project-new
-                        git pull
-                        docker-compose pull
-                        docker-compose up -d
-                        EOF
-                    '''
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo '✅ Deployment completed successfully'
-        }
-        failure {
-            echo '❌ Pipeline failed. Check Jenkins logs'
-        }
-    }
-}
+                    sh
