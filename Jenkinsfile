@@ -47,25 +47,32 @@ pipeline {
             }
         }
 
-        stage('Deploy to EC2 Server') {
+        stage('Deploy to App Server') {
             steps {
                 sshagent(['app-ec2-ssh']) {
                     sh '''
                         set -e
                         ssh -o StrictHostKeyChecking=no ubuntu@3.235.141.216 << 'EOF'
 
+                        echo "🔹 Pulling latest images"
                         docker pull syedafnan9148/project-new-backend:latest
                         docker pull syedafnan9148/project-new-frontend:latest
 
-                        docker stop backend || true
-                        docker stop frontend || true
+                        echo "🔹 Stopping old containers"
+                        docker rm -f backend frontend || true
 
-                        docker rm backend || true
-                        docker rm frontend || true
+                        echo "🔹 Starting new containers"
+                        docker run -d --restart unless-stopped \
+                          --name backend \
+                          -p 3000:3000 \
+                          syedafnan9148/project-new-backend:latest
 
-                        docker run -d --name backend -p 3000:3000 syedafnan9148/project-new-backend:latest
-                        docker run -d --name frontend -p 4200:4200 syedafnan9148/project-new-frontend:latest
+                        docker run -d --restart unless-stopped \
+                          --name frontend \
+                          -p 4200:4200 \
+                          syedafnan9148/project-new-frontend:latest
 
+                        docker ps
                         EOF
                     '''
                 }
