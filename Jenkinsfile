@@ -40,8 +40,8 @@ pipeline {
                     sh '''
                         set -e
                         echo "$DOCKERHUB_PSW" | docker login -u "$DOCKERHUB_USR" --password-stdin
-                        docker push ${DOCKERHUB_BACKEND}:latest
-                        docker push ${DOCKERHUB_FRONTEND}:latest
+                        docker push syedafnan9148/project-new-backend:latest
+                        docker push syedafnan9148/project-new-frontend:latest
                     '''
                 }
             }
@@ -50,4 +50,35 @@ pipeline {
         stage('Deploy to EC2 Server') {
             steps {
                 sshagent(['app-ec2-ssh']) {
-                    sh
+                    sh '''
+                        set -e
+                        ssh -o StrictHostKeyChecking=no ubuntu@3.235.141.216 << 'EOF'
+
+                        docker pull syedafnan9148/project-new-backend:latest
+                        docker pull syedafnan9148/project-new-frontend:latest
+
+                        docker stop backend || true
+                        docker stop frontend || true
+
+                        docker rm backend || true
+                        docker rm frontend || true
+
+                        docker run -d --name backend -p 3000:3000 syedafnan9148/project-new-backend:latest
+                        docker run -d --name frontend -p 4200:4200 syedafnan9148/project-new-frontend:latest
+
+                        EOF
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Deployment completed successfully'
+        }
+        failure {
+            echo '❌ Pipeline failed. Check Jenkins logs'
+        }
+    }
+}
