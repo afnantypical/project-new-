@@ -18,45 +18,47 @@ pipeline {
 
         stage('Build Backend Docker Image') {
             steps {
-                sh """
-                    docker build -t ${DOCKERHUB_BACKEND}:latest ./backend
-                """
+                sh 'docker build -t ${DOCKERHUB_BACKEND}:latest ./backend'
             }
         }
 
         stage('Build Frontend Docker Image') {
             steps {
-                sh """
-                    docker build -t ${DOCKERHUB_FRONTEND}:latest ./frontend
-                """
+                sh 'docker build -t ${DOCKERHUB_FRONTEND}:latest ./frontend'
             }
         }
 
         stage('Push Images to Docker Hub') {
-            environment {
-                DOCKERHUB = credentials('dockerhub-cred')
-            }
             steps {
-                sh """
-                    echo "\$DOCKERHUB_PSW" | docker login -u "\$DOCKERHUB_USR" --password-stdin
-
-                    docker push ${DOCKERHUB_BACKEND}:latest
-                    docker push ${DOCKERHUB_FRONTEND}:latest
-                """
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-cred',
+                        usernameVariable: 'DOCKERHUB_USR',
+                        passwordVariable: 'DOCKERHUB_PSW'
+                    )
+                ]) {
+                    sh '''
+                        set -e
+                        echo "$DOCKERHUB_PSW" | docker login -u "$DOCKERHUB_USR" --password-stdin
+                        docker push ${DOCKERHUB_BACKEND}:latest
+                        docker push ${DOCKERHUB_FRONTEND}:latest
+                    '''
+                }
             }
         }
 
         stage('Deploy to EC2 Server') {
             steps {
-                sshagent(credentials: ['app-ec2-ssh']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} '
-                            cd /opt/project-new &&
-                            git pull &&
-                            docker-compose pull &&
-                            docker-compose up -d
-                        '
-                    """
+                sshagent(['app-ec2-ssh']) {
+                    sh '''
+                        set -e
+                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} << 'EOF'
+                        cd /opt/project-new
+                        git pull
+                        docker-compose pull
+                        docker-compose up -d
+                        EOF
+                    '''
                 }
             }
         }
@@ -64,10 +66,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment completed successfully"
+            echo '✅ Deployment completed successfully'
         }
         failure {
-            echo "❌ Pipeline failed. Check Jenkins logs"
+            echo '❌ Pipeline failed. Check Jenkins logs'
         }
     }
 }
