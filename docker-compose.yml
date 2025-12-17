@@ -3,21 +3,24 @@ version: "3.8"
 services:
   mongo:
     image: mongo:6
-    container_name: project-new-mongo
+    container_name: mean-mongo
     restart: unless-stopped
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_DATABASE: project-new-db
+      MONGO_INITDB_DATABASE: mean-db
     volumes:
       - mongo_data:/data/db
 
   backend:
-    image: syedafnan9148/project-new-backend:latest
-    container_name: project-new-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: syedafnan9148/mean-backend:latest
+    container_name: mean-backend
     restart: unless-stopped
     environment:
-      MONGO_URI: mongodb://mongo:27017/project-new-db
+      MONGO_URI: mongodb://mongo:27017/mean-db
       PORT: 3000
     depends_on:
       - mongo
@@ -25,8 +28,11 @@ services:
       - "3000:3000"
 
   frontend:
-    image: syedafnan9148/project-new-frontend:latest
-    container_name: project-new-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: syedafnan9148/mean-frontend:latest
+    container_name: mean-frontend
     restart: unless-stopped
     depends_on:
       - backend
