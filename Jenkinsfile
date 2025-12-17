@@ -2,73 +2,57 @@ pipeline {
     agent any
 
     environment {
-        BACKEND_IMAGE  = "syedafnan9148/project-new-backend:latest"
-        FRONTEND_IMAGE = "syedafnan9148/project-new-frontend:latest"
+        DOCKERHUB_BACKEND  = "syedafnan9148/mean-backend"
+        DOCKERHUB_FRONTEND = "syedafnan9148/mean-frontend"
+
+        SSH_HOST = "34.204.186.96"
+        SSH_USER = "ubuntu"
     }
 
     stages {
-
-        stage('Checkout SCM') {
+        stage('Checkout') {
             steps {
-                git(
-                    url: 'https://github.com/afnantypical/project-new-.git',
-                    branch: 'main'
-                )
+                checkout scm
             }
         }
 
-        stage('Build Backend Docker Image') {
+        stage('Build Backend Image') {
             steps {
-                dir('backend') {
-                    sh '''
-                        docker build -t $BACKEND_IMAGE .
-                    '''
-                }
+                sh 'docker build -t ${DOCKERHUB_BACKEND}:latest ./backend'
             }
         }
 
-        stage('Build Frontend Docker Image') {
+        stage('Build Frontend Image') {
             steps {
-                dir('frontend') {
-                    sh '''
-                        docker build -t $FRONTEND_IMAGE .
-                    '''
-                }
+                sh 'docker build -t ${DOCKERHUB_FRONTEND}:latest ./frontend'
             }
         }
 
         stage('Push Images to Docker Hub') {
+            environment {
+                DOCKERHUB = credentials('dockerhub-cred')
+            }
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'docker-hub-cred', 
-                    usernameVariable: 'DOCKERHUB_USER', 
-                    passwordVariable: 'DOCKERHUB_PSW'
-                )]) {
-                    sh '''
-                        echo $DOCKERHUB_PSW | docker login -u $DOCKERHUB_USER --password-stdin
-                        docker push $BACKEND_IMAGE
-                        docker push $FRONTEND_IMAGE
-                        docker logout
-                    '''
-                }
+                sh '''
+                  echo "$DOCKERHUB_PSW" | docker login -u "$DOCKERHUB_USR" --password-stdin
+                  docker push ${DOCKERHUB_BACKEND}:latest
+                  docker push ${DOCKERHUB_FRONTEND}:latest
+                '''
             }
         }
 
         stage('Deploy to App Server') {
             steps {
-                echo "Deployment steps go here"
-                // Example:
-                // sh 'ssh user@yourserver "docker pull $BACKEND_IMAGE && docker-compose up -d"'
+                sshagent(credentials: ['app-ec2-ssh']) {
+                    sh '''
+                      ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} "
+                        cd /opt/mean-app/project-new- &&
+                        sudo docker compose pull &&
+                        sudo docker compose up -d
+                      "
+                    '''
+                }
             }
-        }
-    }
-
-    post {
-        success {
-            echo "✅ Pipeline completed successfully!"
-        }
-        failure {
-            echo "❌ Pipeline failed. Check logs for details."
         }
     }
 }
